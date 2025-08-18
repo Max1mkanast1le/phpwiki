@@ -3,7 +3,8 @@ body {
 }
 
 .knowledge-base { 
-  display: flex; border: 1px solid #ccc; 
+  display: flex; 
+  border: 1px solid #ccc; 
 }
 
 .column { 
@@ -39,4 +40,22 @@ body {
 
 #content-display { 
   flex-grow: 1; 
+}
+
+/* Адаптивность для экранов шириной 768px и меньше */
+@media (max-width: 768px) {
+    .knowledge-base {
+        flex-direction: column; 
+        border: none; 
+    }
+
+    .column {
+        border-right: none; 
+        border-bottom: 1px solid #ccc; 
+        min-width: 100%; 
+    }
+
+    .column:last-child {
+        border-bottom: none; 
+    }
 }
