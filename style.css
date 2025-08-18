@@ -1,0 +1,42 @@
+body {
+  font-family: sans-serif; 
+}
+
+.knowledge-base { 
+  display: flex; border: 1px solid #ccc; 
+}
+
+.column { 
+  border-right: 1px solid #ccc; 
+  padding: 10px; 
+  min-width: 200px; 
+}
+
+.column:last-child { 
+  border-right: none; 
+}
+
+.column h3 { 
+  margin-top: 0; 
+  padding-bottom: 10px; 
+  border-bottom: 1px solid #ccc; 
+}
+
+.item { 
+  padding: 8px; 
+  cursor: pointer; 
+  border-radius: 4px; 
+}
+
+.item:hover { 
+  background-color: #f0f0f0; 
+}
+
+.item.active { 
+  background-color: yellow; 
+  font-weight: bold; 
+}
+
+#content-display { 
+  flex-grow: 1; 
+}
