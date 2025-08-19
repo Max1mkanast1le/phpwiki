@@ -1,16 +1,24 @@
 body {
   font-family: sans-serif; 
+  max-width: 860px;
 }
 
-.knowledge-base { 
+.container { 
   display: flex; 
   border: 1px solid #ccc; 
+  border-radius: 5px;
 }
 
 .column { 
   border-right: 1px solid #ccc; 
   padding: 10px; 
-  min-width: 200px; 
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+#list-items {
+  flex-grow: 1;
 }
 
 .column:last-child { 
@@ -38,24 +46,76 @@ body {
   font-weight: bold; 
 }
 
-#content-display { 
+#content-column { 
   flex-grow: 1; 
 }
 
-/* Адаптивность для экранов шириной 768px и меньше */
-@media (max-width: 768px) {
-    .knowledge-base {
-        flex-direction: column; 
-        border: none; 
-    }
+button {
+  margin: 5px 5px 10px 0;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-    .column {
-        border-right: none; 
-        border-bottom: 1px solid #ccc; 
-        min-width: 100%; 
-    }
+button:hover {
+  background-color: #e0e0e0;
+}
 
-    .column:last-child {
-        border-bottom: none; 
-    }
+.content-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  margin-bottom: 15px;
+}
+
+.content-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.content-table td:first-child {
+  font-weight: bold;
+  background-color: #f9f9f9;
+  width: 150px; 
+}
+
+form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+form input[type="text"], form input[type="number"] {
+  width: 95%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.links-container {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.links-container h4 {
+  margin-top: 0;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.checkbox-item label {
+    margin-left: 8px;
+    font-weight: normal;
 }

@@ -1,106 +1,209 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const themesList = document.getElementById('themes-list');
-    const subthemesList = document.getElementById('subthemes-list');
+    const state = {
+        activeMenu: 'contacts', // 'contacts' or 'deals'
+        activeItemId: null,
+        allItems: { contacts: [], deals: [] },
+    };
+
+    // --- DOM Elements ---
+    const menuList = document.getElementById('menu-list');
+    const listItems = document.getElementById('list-items');
+    const listFooter = document.getElementById('list-footer'); // Новый элемент
     const contentArea = document.getElementById('content-area');
 
-    let knowledgeBaseData = {}; 
-    let activeThemeId = null;
-    let activeSubthemeId = null;
+    // --- API Helper ---
+    const api = {
+        get: (url) => fetch(url).then(res => res.json()),
+        post: (url, data) => fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        }).then(res => res.json()),
+        delete: (url) => fetch(url, { method: 'DELETE' }).then(res => res.json()),
+    };
 
-    // Главная асинхронная функция для запуска приложения
-    async function init() {
-        try {
-            // Делаем запрос к нашему API
-            const response = await fetch('api.php');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            knowledgeBaseData = await response.json();
+    // --- RENDER FUNCTIONS ---
+    function renderMenu() {
+        menuList.innerHTML = `
+            <div class="item ${state.activeMenu === 'contacts' ? 'active' : ''}" data-entity="contacts">Контакты</div>
+            <div class="item ${state.activeMenu === 'deals' ? 'active' : ''}" data-entity="deals">Сделки</div>
+        `;
+    }
 
-            // Проверяем, пришли ли данные
-            if (Object.keys(knowledgeBaseData).length === 0) {
-                 themesList.innerHTML = '<p>Данные не найдены.</p>';
-                 return;
-            }
+    async function renderList() {
+        // Рендерим кнопку "Создать" в новом месте
+        const buttonText = state.activeMenu === 'contacts' ? 'Создать контакт' : 'Создать сделку';
+        listFooter.innerHTML = `<button id="add-new-btn">${buttonText}</button>`;
 
-            // Инициализация состояния по умолчанию (первая тема, первая подтема)
-            activeThemeId = Object.keys(knowledgeBaseData)[0];
-            activeSubthemeId = Object.keys(knowledgeBaseData[activeThemeId].subthemes)[0];
+        const items = await api.get(`api.php?entity=${state.activeMenu}`);
+        state.allItems[state.activeMenu] = items;
 
-            // Первоначальная отрисовка интерфейса
-            updateUI();
+        listItems.innerHTML = items.map(item => {
+            const displayName = state.activeMenu === 'contacts' ? `${item.first_name} ${item.last_name}` : item.name;
+            return `<div class="item list-item ${item.id === state.activeItemId ? 'active' : ''}" data-id="${item.id}">${displayName}</div>`;
+        }).join('');
+    }
 
-        } catch (error) {
-            console.error("Не удалось загрузить данные:", error);
-            themesList.innerHTML = `<p style="color: red;">Ошибка при загрузке данных.</p>`;
+    function renderContentDetails() {
+        if (!state.activeItemId) {
+            contentArea.innerHTML = '<p>Выберите элемент из списка или создайте новый.</p>';
+            return;
         }
-    }
 
-    function renderThemes() {
-        themesList.innerHTML = '';
-        for (const themeId in knowledgeBaseData) {
-            const theme = knowledgeBaseData[themeId];
-            const div = document.createElement('div');
-            div.className = 'item theme-item';
-            div.textContent = theme.title;
-            div.dataset.themeId = themeId;
-            if (themeId === activeThemeId) {
-                div.classList.add('active');
-            }
-            themesList.appendChild(div);
+        const item = state.allItems[state.activeMenu].find(i => i.id === state.activeItemId);
+        if (!item) {
+            contentArea.innerHTML = '<p>Элемент не найден.</p>';
+            return;
         }
-    }
 
-    function renderSubthemes(themeId) {
-        subthemesList.innerHTML = '';
-        const theme = knowledgeBaseData[themeId];
-        if (!theme || !theme.subthemes) return;
-
-        for (const subthemeId in theme.subthemes) {
-            const subtheme = theme.subthemes[subthemeId];
-            const div = document.createElement('div');
-            div.className = 'item subtheme-item';
-            div.textContent = subtheme.title;
-            div.dataset.subthemeId = subthemeId;
-            if (subthemeId === activeSubthemeId) {
-                div.classList.add('active');
-            }
-            subthemesList.appendChild(div);
+        let detailsHtml = '';
+        if (state.activeMenu === 'contacts') {
+            detailsHtml = `
+                <table class="content-table">
+                    <tr><td>ID</td><td>${item.id}</td></tr>
+                    <tr><td>Имя</td><td>${item.first_name}</td></tr>
+                    <tr><td>Фамилия</td><td>${item.last_name}</td></tr>
+                </table>
+                <h4>Сделки:</h4>
+                <table class="content-table">
+                    ${item.deals.map(deal => `<tr><td>id сделки: ${deal.id}</td><td>${deal.name}</td></tr>`).join('') || '<tr><td colspan="2">Нет связанных сделок</td></tr>'}
+                </table>
+            `;
+        } else {
+            detailsHtml = `
+                 <table class="content-table">
+                    <tr><td>ID</td><td>${item.id}</td></tr>
+                    <tr><td>Наименование</td><td>${item.name}</td></tr>
+                    <tr><td>Сумма</td><td>${item.sum}</td></tr>
+                </table>
+                <h4>Контакты:</h4>
+                <table class="content-table">
+                     ${item.contacts.map(c => `<tr><td>id контакта: ${c.id}</td><td>${c.first_name} ${c.last_name}</td></tr>`).join('') || '<tr><td colspan="2">Нет связанных контактов</td></tr>'}
+                </table>
+            `;
         }
+        contentArea.innerHTML = detailsHtml + `<button id="edit-btn">Редактировать</button><button id="delete-btn">Удалить</button>`;
     }
 
-    function renderContent(themeId, subthemeId) {
-        const subtheme = knowledgeBaseData[themeId]?.subthemes[subthemeId];
-        contentArea.textContent = subtheme ? subtheme.content : 'Выберите подтему.';
+    async function renderForm(itemToEdit = null) {
+        let formHtml = '';
+        const relatedItems = await api.get(`api.php?entity=${state.activeMenu}&listAll=true`);
+        let checkedRelatedIds = new Set();
+
+        if (state.activeMenu === 'contacts') {
+            if (itemToEdit) itemToEdit.deals.forEach(d => checkedRelatedIds.add(d.id));
+
+            formHtml = `
+                <h3>${itemToEdit ? 'Редактировать контакт' : 'Создать контакт'}</h3>
+                <form>
+                    <label for="first_name">Имя (обязательно):</label>
+                    <input type="text" id="first_name" value="${itemToEdit?.first_name || ''}">
+                    <label for="last_name">Фамилия:</label>
+                    <input type="text" id="last_name" value="${itemToEdit?.last_name || ''}">
+                    <div class="links-container">
+                        <h4>Сделки:</h4>
+                        ${relatedItems.map(deal => `
+                            <div class="checkbox-item">
+                                <input type="checkbox" class="link-checkbox" value="${deal.id}" id="deal-${deal.id}" ${checkedRelatedIds.has(deal.id) ? 'checked' : ''}>
+                                <label for="deal-${deal.id}">${deal.name}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </form>
+            `;
+        } else {
+            if (itemToEdit) itemToEdit.contacts.forEach(c => checkedRelatedIds.add(c.id));
+
+            formHtml = `
+                <h3>${itemToEdit ? 'Редактировать сделку' : 'Создать сделку'}</h3>
+                <form>
+                    <label for="name">Наименование (обязательно):</label>
+                    <input type="text" id="name" value="${itemToEdit?.name || ''}">
+                    <label for="sum">Сумма:</label>
+                    <input type="number" id="sum" value="${itemToEdit?.sum || ''}">
+                    <div class="links-container">
+                        <h4>Контакты:</h4>
+                        ${relatedItems.map(c => `
+                             <div class="checkbox-item">
+                                <input type="checkbox" class="link-checkbox" value="${c.id}" id="contact-${c.id}" ${checkedRelatedIds.has(c.id) ? 'checked' : ''}>
+                                <label for="contact-${c.id}">${c.first_name} ${c.last_name}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </form>
+            `;
+        }
+        contentArea.innerHTML = formHtml + `<button id="save-btn">Сохранить</button><button id="cancel-btn">Отмена</button>`;
     }
 
-    themesList.addEventListener('click', (event) => {
-        const target = event.target;
-        if (!target.classList.contains('theme-item')) return;
-        const clickedThemeId = target.dataset.themeId;
-        if (clickedThemeId !== activeThemeId) {
-            activeThemeId = clickedThemeId;
-            activeSubthemeId = Object.keys(knowledgeBaseData[activeThemeId].subthemes)[0];
+    // --- EVENT HANDLERS ---
+
+    menuList.addEventListener('click', e => {
+        if (!e.target.classList.contains('item')) return;
+        state.activeMenu = e.target.dataset.entity;
+        state.activeItemId = null;
+        updateUI();
+    });
+
+    listItems.addEventListener('click', e => {
+        if (!e.target.classList.contains('list-item')) return;
+        state.activeItemId = parseInt(e.target.dataset.id, 10);
+        updateUI(false); 
+    });
+
+    document.body.addEventListener('click', async e => {
+        if (e.target.id === 'add-new-btn') {
+            state.activeItemId = null; // Сбрасываем выбор, чтобы форма была для создания
+            renderForm();
+        }
+        if (e.target.id === 'edit-btn') {
+            const item = state.allItems[state.activeMenu].find(i => i.id === state.activeItemId);
+            renderForm(item);
+        }
+        if (e.target.id === 'cancel-btn') {
+            updateUI(false);
+        }
+        if (e.target.id === 'delete-btn') {
+            if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
+                await api.delete(`api.php?entity=${state.activeMenu}&id=${state.activeItemId}`);
+                state.activeItemId = null;
+                updateUI();
+            }
+        }
+        if (e.target.id === 'save-btn') {
+            let payload = {};
+            const checkedLinks = [...document.querySelectorAll('.link-checkbox:checked')].map(cb => cb.value);
+
+            if (state.activeMenu === 'contacts') {
+                payload = {
+                    first_name: document.getElementById('first_name').value,
+                    last_name: document.getElementById('last_name').value,
+                    deal_ids: checkedLinks
+                };
+            } else {
+                 payload = {
+                    name: document.getElementById('name').value,
+                    sum: document.getElementById('sum').value,
+                    contact_ids: checkedLinks
+                };
+            }
+
+            const url = `api.php?entity=${state.activeMenu}` + (state.activeItemId ? `&id=${state.activeItemId}` : '');
+            const savedItem = await api.post(url, payload);
+
+            state.activeItemId = savedItem.id;
             updateUI();
         }
     });
 
-    subthemesList.addEventListener('click', (event) => {
-        const target = event.target;
-        if (!target.classList.contains('subtheme-item')) return;
-        const clickedSubthemeId = target.dataset.subthemeId;
-        if (clickedSubthemeId !== activeSubthemeId) {
-            activeSubthemeId = clickedSubthemeId;
-            updateUI();
+    // --- INITIALIZATION ---
+    async function updateUI(fullReload = true) {
+        renderMenu();
+        if (fullReload) {
+            await renderList();
         }
-    });
-
-    function updateUI() {
-        renderThemes();
-        renderSubthemes(activeThemeId);
-        renderContent(activeThemeId, activeSubthemeId);
+        renderContentDetails();
     }
 
-    // Запускаем приложение
-    init();
+    updateUI();
 });

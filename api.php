@@ -1,22 +1,71 @@
 <?php
-// Controller (API Endpoint)
-// Иммитация работы с API
-// Подключаем наш класс-модель
-require_once 'repository.php';
+require_once 'dataManager.php';
 
 header('Content-Type: application/json');
-header('Cache-Control: no-cache');
+
+$manager = new DataManager();
+$method = $_SERVER['REQUEST_METHOD'];
+$entity = $_GET['entity'] ?? null; // 'contacts' or 'deals'
+$id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+
+// Простая валидация
+if (!in_array($entity, ['contacts', 'deals'])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid entity type']);
+    exit();
+}
 
 try {
-    // Создаем экземпляр репозитория, указывая путь к нашему файлу с данными
-    $repository = new repository('data.json');
+    switch ($method) {
+        case 'GET':
+            if ($id !== null) {
+                $data = $manager->getById($entity, $id);
+                if (!$data) http_response_code(404);
+            } else {
+                // Если запросили список всех "противоположных" сущностей для формы
+                if (isset($_GET['listAll'])) {
+                    $listEntity = ($entity === 'contacts') ? 'deals' : 'contacts';
+                    $data = $manager->getAll($listEntity);
+                } else {
+                    $data = $manager->getAll($entity);
+                }
+            }
+            echo json_encode($data);
+            break;
 
-    $data = $repository->fetchAll();
+        case 'POST':
+            $postData = json_decode(file_get_contents('php://input'), true);
+            // Простая валидация обязательных полей
+            if (($entity === 'deals' && empty($postData['name'])) || ($entity === 'contacts' && empty($postData['first_name']))) {
+                 http_response_code(400);
+                 echo json_encode(['error' => 'Required field is missing']);
+                 exit();
+            }
 
-    echo json_encode($data);
+            if ($id) { // Это обновление (используем POST для простоты вместо PUT)
+                $result = $manager->update($entity, $id, $postData);
+            } else { // Это создание
+                $result = $manager->create($entity, $postData);
+            }
+            echo json_encode($result);
+            break;
 
+        case 'DELETE':
+             if ($id === null) {
+                http_response_code(400);
+                echo json_encode(['error' => 'ID is required for deletion']);
+                exit();
+            }
+            $result = $manager->delete($entity, $id);
+            echo json_encode(['success' => $result]);
+            break;
+
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method Not Allowed']);
+            break;
+    }
 } catch (Exception $e) {
-    // В случае ошибки (например, файл не найден) отдаем ошибку сервера
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'An internal server error occurred: ' . $e->getMessage()]);
 }
